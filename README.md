@@ -2,7 +2,7 @@
 
 ⚠️ **<span style="color:red">SECURITY WARNING</span>**
 >
-> **THIS PROJECT HAS BARELY ANY SECURITY AND IS ENTIRELY A LOCAL NETWORK PROJECT. IT WAS NEVER DESIGNED FOR PUBLIC ACCESS.** This project will be updated with all of the fancy hosted security features every Kubernetes cluster should have, but currently it is NOT suitable for production or internet-facing deployment.
+> **THIS PROJECT HAS BARELY ANY SECURITY AND IS ENTIRELY A LOCAL NETWORK PROJECT. IT WAS NEVER DESIGNED FOR PUBLIC ACCESS.** This project will be updated with all of the fancy hosted security features every Kubernetes cluster should have, but currently it is NOT suitable for production or internet-facing deployment. Please as well with any of our public facing projects that we do not optimize them (unless explicity stated) for production.
 
 A fully autonomous, real-time multi-modal AI system designed to function as a "team in a box."
 
@@ -28,8 +28,8 @@ The system operates across five architectural layers:
 
 1. Clone the repository:
 ```bash
-git clone <repository-url>
-cd insanity-cluster
+git clone https://github.com/InsanityLabs/InsanityCluster.git
+cd InsanityCluster
 ```
 
 2. Create and activate a virtual environment:
