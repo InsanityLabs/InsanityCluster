@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from insanity_cluster.common.retry_handler import circuit_breaker_manager
-from insanity_cluster.surface.auth import get_current_user
+from insanity_cluster.surface.auth import get_current_user_api_key
 
 
 router = APIRouter(prefix="/api/v1/monitoring", tags=["monitoring"])
@@ -28,7 +28,7 @@ class CircuitBreakerResetRequest(BaseModel):
 
 @router.get("/circuit-breakers", response_model=Dict[str, CircuitBreakerStateResponse])
 async def get_circuit_breaker_states(
-    current_user: Dict = Depends(get_current_user),
+    current_user = Depends(get_current_user_api_key),
 ):
     """
     Get states of all circuit breakers.
@@ -44,7 +44,7 @@ async def get_circuit_breaker_states(
 @router.get("/circuit-breakers/{name}", response_model=CircuitBreakerStateResponse)
 async def get_circuit_breaker_state(
     name: str,
-    current_user: Dict = Depends(get_current_user),
+    current_user = Depends(get_current_user_api_key),
 ):
     """
     Get state of a specific circuit breaker.
@@ -64,7 +64,7 @@ async def get_circuit_breaker_state(
 @router.post("/circuit-breakers/reset")
 async def reset_circuit_breaker(
     request: CircuitBreakerResetRequest,
-    current_user: Dict = Depends(get_current_user),
+    current_user = Depends(get_current_user_api_key),
 ):
     """
     Reset a circuit breaker to closed state.
@@ -82,7 +82,7 @@ async def reset_circuit_breaker(
 
 @router.post("/circuit-breakers/reset-all")
 async def reset_all_circuit_breakers(
-    current_user: Dict = Depends(get_current_user),
+    current_user = Depends(get_current_user_api_key),
 ):
     """
     Reset all circuit breakers to closed state.

@@ -22,9 +22,14 @@ from insanity_cluster.surface.auth import (
     require_role_dependency
 )
 from insanity_cluster.surface.command_parser import CommandParser
-from insanity_cluster.table.database import DatabaseManager
+from insanity_cluster.table.database import DatabaseManager, get_db
 from insanity_cluster.table.redis_manager import RedisManager
 from insanity_cluster.table.models import User, Task
+
+# Import API routers
+from insanity_cluster.surface.monitoring_api import router as monitoring_router
+from insanity_cluster.surface.cost_api import router as cost_router
+from insanity_cluster.surface.config_api import router as config_router
 
 logger = logging.getLogger(__name__)
 
@@ -100,6 +105,11 @@ if settings.enable_cors:
         allow_headers=["*"],
     )
 
+# Include API routers
+app.include_router(monitoring_router)
+app.include_router(cost_router)
+app.include_router(config_router)
+
 
 # Global instances (will be initialized on startup)
 db_manager: Optional[DatabaseManager] = None
@@ -115,7 +125,7 @@ async def startup_event():
     
     logger.info("Starting Insanity Cluster API...")
     
-    # Initialize managers
+    # Initialize managers (these are also initialized in main.py but kept here for standalone use)
     db_manager = DatabaseManager()
     redis_manager = RedisManager()
     auth_manager = AuthManager(db_manager, redis_manager)
@@ -156,7 +166,8 @@ async def health_check():
 async def create_task(
     request: TaskRequest,
     background_tasks: BackgroundTasks,
-    user: User = Depends(get_current_user_api_key)
+    user: User = Depends(get_current_user_api_key),
+    db: Any = Depends(get_db)
 ):
     """
     Create a new task from natural language command.
@@ -165,23 +176,35 @@ async def create_task(
     Returns immediately with task ID for status tracking.
     """
     try:
-        # Parse command
-        parsed_command = command_parser.parse(request.command, str(user.id))
+        # Get command_parser from main.py
+        from insanity_cluster.surface import main
+        
+        if not hasattr(main, 'command_parser') or not main.command_parser:
+            # If command parser not available, create a simple parsed command
+            from insanity_cluster.common.models import ParsedCommand
+            parsed_command = ParsedCommand(
+                intent="unknown",
+                parameters={},
+                user_id=str(user.id),
+                timestamp=datetime.utcnow()
+            )
+        else:
+            # Parse command
+            parsed_command = main.command_parser.parse(request.command, str(user.id))
         
         # Create task in database
         task_id = str(uuid.uuid4())
-        with db_manager.get_session() as session:
-            task = Task(
-                id=task_id,
-                user_id=user.id,
-                command=request.command,
-                status="pending",
-                task_graph=None,  # Will be populated by INNER layer
-                result=None,
-                cost=0.0
-            )
-            session.add(task)
-            session.commit()
+        task = Task(
+            id=task_id,
+            user_id=user.id,
+            command=request.command,
+            status="pending",
+            task_graph=None,  # Will be populated by INNER layer
+            result=None,
+            cost=0.0
+        )
+        db.add(task)
+        db.commit()
         
         # Queue task for processing (background)
         background_tasks.add_task(queue_task_for_processing, task_id, parsed_command)
@@ -233,11 +256,13 @@ async def get_task_status(
             # Get progress from Redis if task is running
             progress = None
             if task.status in ["pending", "running"]:
-                progress_key = f"task_progress:{task_id}"
-                progress_data = redis_manager.get(progress_key)
-                if progress_data:
-                    import json
-                    progress = json.loads(progress_data)
+                from insanity_cluster.surface import main
+                if hasattr(main, 'redis_manager') and main.redis_manager:
+                    progress_key = f"task_progress:{task_id}"
+                    progress_data = main.redis_manager.get(progress_key)
+                    if progress_data:
+                        import json
+                        progress = json.loads(progress_data)
             
             return TaskStatus(
                 task_id=str(task.id),
@@ -270,7 +295,8 @@ async def list_tasks(
     user: User = Depends(get_current_user_api_key),
     status_filter: Optional[str] = None,
     limit: int = 50,
-    offset: int = 0
+    offset: int = 0,
+    db: Any = Depends(get_db)
 ):
     """
     List tasks for the current user.
@@ -278,31 +304,30 @@ async def list_tasks(
     Supports filtering by status and pagination.
     """
     try:
-        with db_manager.get_session() as session:
-            query = session.query(Task).filter(Task.user_id == user.id)
-            
-            if status_filter:
-                query = query.filter(Task.status == status_filter)
-            
-            query = query.order_by(Task.created_at.desc())
-            query = query.limit(limit).offset(offset)
-            
-            tasks = query.all()
-            
-            return [
-                TaskStatus(
-                    task_id=str(task.id),
-                    status=task.status,
-                    command=task.command,
-                    result=task.result,
-                    cost=float(task.cost),
-                    latency_ms=task.latency_ms,
-                    created_at=task.created_at,
-                    completed_at=task.completed_at,
-                    progress=None
-                )
-                for task in tasks
-            ]
+        query = db.query(Task).filter(Task.user_id == user.id)
+        
+        if status_filter:
+            query = query.filter(Task.status == status_filter)
+        
+        query = query.order_by(Task.created_at.desc())
+        query = query.limit(limit).offset(offset)
+        
+        tasks = query.all()
+        
+        return [
+            TaskStatus(
+                task_id=str(task.id),
+                status=task.status,
+                command=task.command,
+                result=task.result,
+                cost=float(task.cost),
+                latency_ms=task.latency_ms,
+                created_at=task.created_at,
+                completed_at=task.completed_at,
+                progress=None
+            )
+            for task in tasks
+        ]
             
     except Exception as e:
         logger.error(f"Failed to list tasks: {e}")
@@ -350,8 +375,10 @@ async def cancel_task(
             session.commit()
         
         # Send cancellation signal to INNER layer
-        cancel_key = f"task_cancel:{task_id}"
-        redis_manager.setex(cancel_key, 3600, "cancelled")
+        from insanity_cluster.surface import main
+        if hasattr(main, 'redis_manager') and main.redis_manager:
+            cancel_key = f"task_cancel:{task_id}"
+            main.redis_manager.setex(cancel_key, 3600, "cancelled")
         
         logger.info(f"Cancelled task {task_id}")
         
@@ -382,6 +409,15 @@ async def register_webhook(
     Supported events: task.completed, task.failed, task.cancelled
     """
     try:
+        # Get redis_manager from main.py
+        from insanity_cluster.surface import main
+        
+        if not hasattr(main, 'redis_manager') or not main.redis_manager:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Redis service not available"
+            )
+        
         webhook_id = str(uuid.uuid4())
         
         # Store webhook configuration in Redis
@@ -397,11 +433,11 @@ async def register_webhook(
         }
         
         import json
-        redis_manager.set(webhook_key, json.dumps(webhook_data))
+        main.redis_manager.set(webhook_key, json.dumps(webhook_data))
         
         # Add to user's webhooks set
         user_webhooks_key = f"user_webhooks:{user.id}"
-        redis_manager.sadd(user_webhooks_key, webhook_id)
+        main.redis_manager.sadd(user_webhooks_key, webhook_id)
         
         logger.info(f"Registered webhook {webhook_id} for user {user.id}")
         
@@ -431,8 +467,17 @@ async def delete_webhook(
 ):
     """Delete a webhook"""
     try:
+        # Get redis_manager from main.py
+        from insanity_cluster.surface import main
+        
+        if not hasattr(main, 'redis_manager') or not main.redis_manager:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Redis service not available"
+            )
+        
         webhook_key = f"webhook:{webhook_id}"
-        webhook_data = redis_manager.get(webhook_key)
+        webhook_data = main.redis_manager.get(webhook_key)
         
         if not webhook_data:
             raise HTTPException(
@@ -449,10 +494,10 @@ async def delete_webhook(
                 detail="Not authorized to delete this webhook"
             )
         
-        redis_manager.delete(webhook_key)
+        main.redis_manager.delete(webhook_key)
         
         user_webhooks_key = f"user_webhooks:{user.id}"
-        redis_manager.srem(user_webhooks_key, webhook_id)
+        main.redis_manager.srem(user_webhooks_key, webhook_id)
         
         logger.info(f"Deleted webhook {webhook_id}")
         
@@ -475,6 +520,12 @@ async def queue_task_for_processing(task_id: str, parsed_command: ParsedCommand)
     """
     try:
         # Add task to Redis queue for INNER layer
+        from insanity_cluster.surface import main
+        
+        if not hasattr(main, 'redis_manager') or not main.redis_manager:
+            logger.warning("Redis not available, task not queued")
+            return
+        
         import json
         task_data = {
             "task_id": task_id,
@@ -484,7 +535,7 @@ async def queue_task_for_processing(task_id: str, parsed_command: ParsedCommand)
             "timestamp": parsed_command.timestamp.isoformat()
         }
         
-        redis_manager.lpush("task_queue", json.dumps(task_data))
+        main.redis_manager.lpush("task_queue", json.dumps(task_data))
         
         logger.info(f"Queued task {task_id} for processing")
         
@@ -538,6 +589,198 @@ async def deliver_webhook(webhook_url: str, event: str, payload: Dict[str, Any],
         logger.error(f"Failed to deliver webhook: {e}")
 
 
+# Metrics endpoints (simplified versions for dashboard)
+@app.get("/metrics/cost", tags=["Metrics"])
+async def get_cost_metrics(
+    user: User = Depends(get_current_user_api_key),
+    db: Any = Depends(get_db)
+):
+    """Get cost metrics for the current user"""
+    try:
+        # Get total cost from tasks
+        from sqlalchemy import func
+        total_cost = db.query(func.sum(Task.cost)).filter(
+            Task.user_id == user.id
+        ).scalar() or 0.0
+        
+        # Get task count
+        task_count = db.query(func.count(Task.id)).filter(
+            Task.user_id == user.id
+        ).scalar() or 0
+        
+        # Get today's cost
+        from datetime import datetime, timedelta
+        today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+        today_cost = db.query(func.sum(Task.cost)).filter(
+            Task.user_id == user.id,
+            Task.created_at >= today_start
+        ).scalar() or 0.0
+        
+        # Calculate cost per task
+        cost_per_task = float(total_cost) / task_count if task_count > 0 else 0.0
+        
+        return {
+            "total_spend": float(total_cost),
+            "daily_spend": float(today_cost),
+            "cost_per_task": cost_per_task,
+            "task_count": task_count
+        }
+    except Exception as e:
+        logger.error(f"Failed to get cost metrics: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get cost metrics: {str(e)}"
+        )
+
+
+@app.get("/metrics/latency", tags=["Metrics"])
+async def get_latency_metrics(
+    user: User = Depends(get_current_user_api_key),
+    db: Any = Depends(get_db)
+):
+    """Get latency metrics for the current user"""
+    try:
+        from sqlalchemy import func
+        
+        # Get all latencies for percentile calculation
+        latencies = db.query(Task.latency_ms).filter(
+            Task.user_id == user.id,
+            Task.latency_ms.isnot(None)
+        ).order_by(Task.latency_ms).all()
+        
+        latency_values = [l[0] for l in latencies if l[0] is not None]
+        
+        if not latency_values:
+            # No data, return zeros
+            return {
+                "avg": 0.0,
+                "p50": 0.0,
+                "p95": 0.0,
+                "p99": 0.0
+            }
+        
+        # Calculate percentiles
+        import statistics
+        avg = statistics.mean(latency_values)
+        
+        def percentile(data, p):
+            n = len(data)
+            if n == 0:
+                return 0
+            k = (n - 1) * p
+            f = int(k)
+            c = k - f
+            if f + 1 < n:
+                return data[f] + c * (data[f + 1] - data[f])
+            return data[f]
+        
+        return {
+            "avg": float(avg),
+            "p50": float(percentile(latency_values, 0.50)),
+            "p95": float(percentile(latency_values, 0.95)),
+            "p99": float(percentile(latency_values, 0.99))
+        }
+    except Exception as e:
+        logger.error(f"Failed to get latency metrics: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get latency metrics: {str(e)}"
+        )
+
+
+@app.get("/metrics/system", tags=["Metrics"])
+async def get_system_metrics(
+    user: User = Depends(get_current_user_api_key),
+    db: Any = Depends(get_db)
+):
+    """Get system metrics"""
+    try:
+        from sqlalchemy import func
+        
+        # Get task counts by status
+        task_counts = db.query(
+            Task.status,
+            func.count(Task.id)
+        ).filter(
+            Task.user_id == user.id
+        ).group_by(Task.status).all()
+        
+        status_counts = {status: count for status, count in task_counts}
+        
+        total_tasks = sum(status_counts.values())
+        completed = status_counts.get("completed", 0)
+        failed = status_counts.get("failed", 0)
+        pending = status_counts.get("pending", 0)
+        running = status_counts.get("running", 0)
+        
+        # Calculate rates
+        completion_rate = completed / total_tasks if total_tasks > 0 else 0.0
+        error_rate = failed / total_tasks if total_tasks > 0 else 0.0
+        
+        return {
+            "task_completion_rate": completion_rate,
+            "error_rate": error_rate,
+            "active_tasks": running,
+            "queue_depth": pending
+        }
+    except Exception as e:
+        logger.error(f"Failed to get system metrics: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get system metrics: {str(e)}"
+        )
+
+
+@app.get("/config", tags=["Configuration"])
+async def get_config(
+    user: User = Depends(get_current_user_api_key)
+):
+    """Get current configuration"""
+    try:
+        # Return basic config info
+        return {
+            "api_version": "1.0.0",
+            "features": {
+                "websocket": True,
+                "webhooks": True,
+                "metrics": True
+            },
+            "limits": {
+                "max_tasks_per_day": 1000,
+                "max_concurrent_tasks": 10
+            }
+        }
+    except Exception as e:
+        logger.error(f"Failed to get config: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get config: {str(e)}"
+        )
+
+
+@app.put("/config", tags=["Configuration"])
+async def update_config(
+    config: Dict[str, Any],
+    user: User = Depends(get_current_user_api_key)
+):
+    """Update configuration (placeholder for future implementation)"""
+    try:
+        # For now, just acknowledge the update
+        # In the future, this would update actual configuration
+        logger.info(f"Configuration update requested by user {user.id}: {config}")
+        
+        return {
+            "message": "Configuration update received",
+            "status": "success"
+        }
+    except Exception as e:
+        logger.error(f"Failed to update config: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to update config: {str(e)}"
+        )
+
+
 # Admin endpoints
 @app.post(
     "/admin/users",
@@ -547,24 +790,34 @@ async def deliver_webhook(webhook_url: str, event: str, payload: Dict[str, Any],
 )
 async def create_user(
     email: str,
-    role: UserRole = UserRole.USER
+    role: UserRole = UserRole.USER,
+    db: Any = Depends(get_db)
 ):
     """Create a new user (admin only)"""
     try:
+        # Get auth_manager from main.py
+        from insanity_cluster.surface import main
+        
+        if not hasattr(main, 'auth_manager') or not main.auth_manager:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Authentication service not available"
+            )
+        
         # Generate API key
-        api_key, api_key_hash = auth_manager.generate_api_key()
+        api_key, api_key_hash = main.auth_manager.generate_api_key()
         
         # Create user
-        with db_manager.get_session() as session:
-            user = User(
-                email=email,
-                api_key_hash=api_key_hash,
-                role=role.value
-            )
-            session.add(user)
-            session.commit()
-            
-            user_id = str(user.id)
+        user = User(
+            email=email,
+            api_key_hash=api_key_hash,
+            role=role.value
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        
+        user_id = str(user.id)
         
         logger.info(f"Created user {user_id}")
         

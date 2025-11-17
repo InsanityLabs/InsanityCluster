@@ -140,7 +140,7 @@ services:
       DEBUG: ${DEBUG:-true}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       # Security
-      SECRET_KEY: ${SECRET_KEY:-dev_secret_key_change_in_production}
+      SECRET_KEY: ${SECRET_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkYXNoYm9hcmRfdXNlciIsIm5hbWUiOiJEYXNoYm9hcmQiLCJyb2xlIjoidXNlciIsImlhdCI6MTc2MzM2NDc4NywiZXhwIjoxNzk0OTAwNzg3fQ.eMrchhdgQoOP_Gg8OlmJTRvJXtyP3Ch1nTGuWJxyNxA}
       # AI Providers
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}

@@ -44,6 +44,23 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info("Starting Insanity Cluster SURFACE layer...")
     
+    # Run database migrations
+    try:
+        logger.info("Running database migrations...")
+        import subprocess
+        result = subprocess.run(
+            ["alembic", "upgrade", "head"],
+            capture_output=True,
+            text=True,
+            check=False
+        )
+        if result.returncode == 0:
+            logger.info("Database migrations completed successfully")
+        else:
+            logger.warning(f"Database migrations failed: {result.stderr}")
+    except Exception as e:
+        logger.error(f"Failed to run migrations: {e}")
+    
     # Initialize managers
     db_manager = DatabaseManager()
     redis_manager = RedisManager()

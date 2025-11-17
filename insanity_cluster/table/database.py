@@ -133,3 +133,34 @@ async def init_db():
 async def close_db():
     """Close database connections"""
     await db_manager.close()
+
+
+# Synchronous database dependency for FastAPI
+def get_db():
+    """
+    Synchronous database session dependency for FastAPI.
+    
+    Note: This uses the synchronous context manager from DatabaseManager.
+    For async endpoints, use get_session() instead.
+    """
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker, Session
+    
+    # Create synchronous engine
+    database_url = settings.database_url
+    engine = create_engine(
+        database_url,
+        pool_size=20,
+        max_overflow=10,
+        pool_pre_ping=True,
+        pool_recycle=3600,
+    )
+    
+    # Create session factory
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()

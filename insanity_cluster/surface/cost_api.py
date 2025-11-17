@@ -11,7 +11,8 @@ from sqlalchemy.orm import Session
 from insanity_cluster.common.cost_tracker import CostTracker
 from insanity_cluster.table.database import get_db
 from insanity_cluster.table.redis_manager import RedisManager
-from insanity_cluster.surface.auth import get_current_user
+from insanity_cluster.surface.auth import get_current_user_api_key
+from insanity_cluster.table.models import User
 
 
 router = APIRouter(prefix="/api/v1/costs", tags=["costs"])
@@ -73,7 +74,7 @@ class CostAnalyticsResponse(BaseModel):
 async def estimate_cost(
     request: CostEstimateRequest,
     db: Session = Depends(get_db),
-    current_user: Dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_api_key),
 ):
     """
     Estimate cost for a model inference.
@@ -98,13 +99,13 @@ async def estimate_cost(
 async def get_daily_cost(
     date: Optional[str] = Query(None, description="Date in YYYY-MM-DD format"),
     db: Session = Depends(get_db),
-    current_user: Dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_api_key),
 ):
     """
     Get total cost for a specific day.
     """
     cost_tracker = CostTracker(db)
-    user_id = UUID(current_user["user_id"])
+    user_id = UUID(str(current_user.id))
     
     if date:
         date_obj = datetime.fromisoformat(date)
@@ -125,13 +126,13 @@ async def get_monthly_cost(
     year: Optional[int] = Query(None, description="Year"),
     month: Optional[int] = Query(None, description="Month (1-12)"),
     db: Session = Depends(get_db),
-    current_user: Dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_api_key),
 ):
     """
     Get total cost for a specific month.
     """
     cost_tracker = CostTracker(db)
-    user_id = UUID(current_user["user_id"])
+    user_id = UUID(str(current_user.id))
     
     now = datetime.utcnow()
     year = year or now.year
@@ -152,13 +153,13 @@ async def get_cost_report(
     start_date: Optional[str] = Query(None, description="Start date in YYYY-MM-DD format"),
     end_date: Optional[str] = Query(None, description="End date in YYYY-MM-DD format"),
     db: Session = Depends(get_db),
-    current_user: Dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_api_key),
 ):
     """
     Generate cost report for a date range.
     """
     cost_tracker = CostTracker(db)
-    user_id = UUID(current_user["user_id"])
+    user_id = UUID(str(current_user.id))
     
     start_date_obj = datetime.fromisoformat(start_date) if start_date else None
     end_date_obj = datetime.fromisoformat(end_date) if end_date else None
@@ -171,13 +172,13 @@ async def get_cost_report(
 @router.get("/analytics", response_model=CostAnalyticsResponse)
 async def get_cost_analytics(
     db: Session = Depends(get_db),
-    current_user: Dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_api_key),
 ):
     """
     Get cost analytics with trends and insights.
     """
     cost_tracker = CostTracker(db)
-    user_id = UUID(current_user["user_id"])
+    user_id = UUID(str(current_user.id))
     
     analytics = cost_tracker.get_cost_analytics(user_id)
     

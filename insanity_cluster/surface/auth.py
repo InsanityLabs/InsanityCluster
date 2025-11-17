@@ -88,7 +88,7 @@ class AuthManager:
         logger.info("Generated new API key")
         return api_key, api_key_hash
     
-    def rotate_api_key(self, user_id: str) -> str:
+    async def rotate_api_key(self, user_id: str) -> str:
         """
         Rotate API key for a user.
         
@@ -100,14 +100,18 @@ class AuthManager:
         """
         api_key, api_key_hash = self.generate_api_key()
         
-        # Update user's API key in database
-        with self.db_manager.get_session() as session:
-            user = session.query(User).filter(User.id == user_id).first()
+        # Update user's API key in database using async session
+        async with self.db_manager.session() as session:
+            from sqlalchemy import select
+            result = await session.execute(
+                select(User).filter(User.id == user_id)
+            )
+            user = result.scalar_one_or_none()
             if not user:
                 raise AuthenticationError(f"User {user_id} not found")
             
             user.api_key_hash = api_key_hash
-            session.commit()
+            await session.commit()
         
         logger.info(f"Rotated API key for user {user_id}")
         return api_key
@@ -130,11 +134,13 @@ class AuthManager:
         
         api_key_hash = self._hash_api_key(api_key)
         
-        # Look up user by API key hash
-        with self.db_manager.get_session() as session:
-            user = session.query(User).filter(
-                User.api_key_hash == api_key_hash
-            ).first()
+        # Look up user by API key hash using async session
+        async with self.db_manager.session() as session:
+            from sqlalchemy import select
+            result = await session.execute(
+                select(User).filter(User.api_key_hash == api_key_hash)
+            )
+            user = result.scalar_one_or_none()
             
             if not user:
                 logger.warning(f"Invalid API key attempt")
@@ -353,8 +359,9 @@ async def get_current_user_api_key(
     Raises:
         HTTPException: If authentication fails
     """
-    # Note: In production, auth_manager should be injected via app state
-    # For now, we'll create a minimal user object for testing
+    from fastapi import Request
+    from starlette.requests import Request as StarletteRequest
+    
     if not api_key:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -363,7 +370,17 @@ async def get_current_user_api_key(
         )
     
     try:
-        user = await auth_manager.verify_api_key(api_key)
+        # Get auth_manager from main.py's global scope
+        # This is set during the lifespan startup in main.py
+        from insanity_cluster.surface import main
+        
+        if not hasattr(main, 'auth_manager') or not main.auth_manager:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Authentication service not available"
+            )
+        
+        user = await main.auth_manager.verify_api_key(api_key)
         return user
     except AuthenticationError as e:
         raise HTTPException(
@@ -381,7 +398,6 @@ async def get_current_user_jwt(
     
     Args:
         credentials: Bearer token credentials
-        auth_manager: Auth manager instance
         
     Returns:
         Token payload with user info
@@ -397,7 +413,16 @@ async def get_current_user_jwt(
         )
     
     try:
-        payload = await auth_manager.verify_jwt_token(credentials.credentials)
+        # Get auth_manager from main.py's global scope
+        from insanity_cluster.surface import main
+        
+        if not hasattr(main, 'auth_manager') or not main.auth_manager:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Authentication service not available"
+            )
+        
+        payload = await main.auth_manager.verify_jwt_token(credentials.credentials)
         return payload
     except AuthenticationError as e:
         raise HTTPException(

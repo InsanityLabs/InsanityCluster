@@ -31,7 +31,8 @@ from insanity_cluster.common.configuration import (
 )
 from insanity_cluster.common.config_manager import ConfigurationManager, config_cache
 from insanity_cluster.table.database import get_db
-from insanity_cluster.surface.auth import get_current_user
+from insanity_cluster.surface.auth import get_current_user_api_key
+from insanity_cluster.table.models import User
 
 
 router = APIRouter(prefix="/api/v1/config", tags=["configuration"])
@@ -154,13 +155,13 @@ async def list_operating_modes():
 async def select_operating_mode(
     request: ModeSelectionRequest,
     db: Session = Depends(get_db),
-    current_user: Dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_api_key),
 ):
     """
     Select an operating mode and optionally use default configuration.
     """
     config_manager = ConfigurationManager(db)
-    user_id = UUID(current_user["user_id"])
+    user_id = UUID(str(current_user.id))
     
     if request.use_default_config:
         # Get default config for the mode
@@ -215,13 +216,13 @@ async def select_operating_mode(
 async def list_configurations(
     include_system: bool = True,
     db: Session = Depends(get_db),
-    current_user: Dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_api_key),
 ):
     """
     List all configurations for the current user.
     """
     config_manager = ConfigurationManager(db)
-    user_id = UUID(current_user["user_id"])
+    user_id = UUID(str(current_user.id))
     
     configs = config_manager.list_configurations(
         user_id=user_id,
@@ -234,13 +235,13 @@ async def list_configurations(
 @router.get("/configurations/active", response_model=ConfigurationDetailResponse)
 async def get_active_configuration(
     db: Session = Depends(get_db),
-    current_user: Dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_api_key),
 ):
     """
     Get the active configuration for the current user.
     """
     config_manager = ConfigurationManager(db)
-    user_id = UUID(current_user["user_id"])
+    user_id = UUID(str(current_user.id))
     
     # Try cache first
     config = config_cache.get(user_id)
@@ -273,7 +274,7 @@ async def get_active_configuration(
 async def get_configuration(
     config_id: UUID,
     db: Session = Depends(get_db),
-    current_user: Dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_api_key),
 ):
     """
     Get a specific configuration by ID.
@@ -305,13 +306,13 @@ async def get_configuration(
 async def create_configuration(
     request: ConfigurationCreateRequest,
     db: Session = Depends(get_db),
-    current_user: Dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_api_key),
 ):
     """
     Create a new configuration.
     """
     config_manager = ConfigurationManager(db)
-    user_id = UUID(current_user["user_id"])
+    user_id = UUID(str(current_user.id))
     
     # Create configuration from request
     config = ModeConfiguration(
@@ -352,13 +353,13 @@ async def create_configuration(
 async def activate_configuration(
     config_id: UUID,
     db: Session = Depends(get_db),
-    current_user: Dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_api_key),
 ):
     """
     Set a configuration as active.
     """
     config_manager = ConfigurationManager(db)
-    user_id = UUID(current_user["user_id"])
+    user_id = UUID(str(current_user.id))
     
     success = config_manager.set_active_configuration(config_id, user_id)
     
@@ -377,13 +378,13 @@ async def activate_configuration(
 async def delete_configuration(
     config_id: UUID,
     db: Session = Depends(get_db),
-    current_user: Dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_api_key),
 ):
     """
     Delete a configuration.
     """
     config_manager = ConfigurationManager(db)
-    user_id = UUID(current_user["user_id"])
+    user_id = UUID(str(current_user.id))
     
     success = config_manager.delete_configuration(config_id)
     
@@ -403,13 +404,13 @@ async def configure_agent_models(
     config_id: UUID,
     request: AgentModelConfigRequest,
     db: Session = Depends(get_db),
-    current_user: Dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_api_key),
 ):
     """
     Configure agent-specific model preferences.
     """
     config_manager = ConfigurationManager(db)
-    user_id = UUID(current_user["user_id"])
+    user_id = UUID(str(current_user.id))
     
     config = config_manager.get_configuration(config_id)
     
@@ -445,13 +446,13 @@ async def configure_task_models(
     config_id: UUID,
     request: TaskModelConfigRequest,
     db: Session = Depends(get_db),
-    current_user: Dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_api_key),
 ):
     """
     Configure task-type specific model preferences.
     """
     config_manager = ConfigurationManager(db)
-    user_id = UUID(current_user["user_id"])
+    user_id = UUID(str(current_user.id))
     
     config = config_manager.get_configuration(config_id)
     
@@ -489,13 +490,13 @@ async def configure_model_provider(
     config_id: UUID,
     request: ModelProviderConfigRequest,
     db: Session = Depends(get_db),
-    current_user: Dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_api_key),
 ):
     """
     Configure model provider settings.
     """
     config_manager = ConfigurationManager(db)
-    user_id = UUID(current_user["user_id"])
+    user_id = UUID(str(current_user.id))
     
     config = config_manager.get_configuration(config_id)
     
@@ -533,7 +534,7 @@ async def configure_model_provider(
 async def validate_configuration(
     config_id: UUID,
     db: Session = Depends(get_db),
-    current_user: Dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_api_key),
 ):
     """
     Validate a configuration and return errors/warnings.
@@ -563,7 +564,7 @@ async def export_configuration(
     config_id: UUID,
     format: str = "json",
     db: Session = Depends(get_db),
-    current_user: Dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_api_key),
 ):
     """
     Export configuration as JSON or YAML.
@@ -587,13 +588,13 @@ async def import_configuration(
     format: str = "json",
     set_active: bool = False,
     db: Session = Depends(get_db),
-    current_user: Dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_api_key),
 ):
     """
     Import configuration from JSON or YAML.
     """
     config_manager = ConfigurationManager(db)
-    user_id = UUID(current_user["user_id"])
+    user_id = UUID(str(current_user.id))
     
     try:
         config_id = config_manager.import_configuration(
@@ -617,13 +618,13 @@ async def import_configuration(
 @router.post("/configurations/defaults")
 async def create_default_configurations(
     db: Session = Depends(get_db),
-    current_user: Dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_api_key),
 ):
     """
     Create default configurations for all operating modes.
     """
     config_manager = ConfigurationManager(db)
-    user_id = UUID(current_user["user_id"])
+    user_id = UUID(str(current_user.id))
     
     config_manager.create_default_configurations(user_id)
     

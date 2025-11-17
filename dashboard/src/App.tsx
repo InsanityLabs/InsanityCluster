@@ -10,14 +10,24 @@ function App() {
   const [activeView, setActiveView] = useState<'tasks' | 'metrics' | 'config'>('tasks');
 
   useEffect(() => {
-    const wsUrl = import.meta.env.VITE_WS_URL || 'http://localhost:8000';
-    const socket = wsClient.connect(wsUrl);
+    const wsUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:5000';
+    const token = import.meta.env.VITE_API_TOKEN || 'demo_token';
+    
+    console.log('Connecting to WebSocket with token...');
+    wsClient.connect(wsUrl, token);
 
-    socket.on('connect', () => {
+    wsClient.on('connect', () => {
+      console.log('Dashboard connected to WebSocket');
       setConnected(true);
     });
 
-    socket.on('disconnect', () => {
+    wsClient.on('disconnect', () => {
+      console.log('Dashboard disconnected from WebSocket');
+      setConnected(false);
+    });
+
+    wsClient.on('connect_error', (error) => {
+      console.error('Dashboard WebSocket connection error:', error);
       setConnected(false);
     });
 
