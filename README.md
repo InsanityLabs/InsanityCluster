@@ -1,5 +1,9 @@
 # Insanity Cluster
 
+⚠️ **<span style="color:red">SECURITY WARNING</span>**
+>
+> **THIS PROJECT HAS BARELY ANY SECURITY AND IS ENTIRELY A LOCAL NETWORK PROJECT. IT WAS NEVER DESIGNED FOR PUBLIC ACCESS.** This project will be updated with all of the fancy hosted security features every Kubernetes cluster should have, but currently it is NOT suitable for production or internet-facing deployment.
+
 A fully autonomous, real-time multi-modal AI system designed to function as a "team in a box."
 
 ## Architecture
@@ -164,8 +168,8 @@ For detailed TABLE layer documentation, see [insanity_cluster/table/README.md](i
 
 ## License
 
-[License information]
+GNU GENERAL PUBLIC LICENSE v3 (This might get changed to a custom licence we use for our open sourced projects)
 
 ## Contributing
 
-[Contributing guidelines]
+For Contributing documentation, see [CONTRIBUTING.md](CONTRIBUTING.md)
