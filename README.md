@@ -160,12 +160,12 @@ The TABLE layer provides the foundational infrastructure:
 - Cost tracking
 - Error rate monitoring
 
-For detailed TABLE layer documentation, see [insanity_cluster/table/README.md](insanity_cluster/table/README.md)
+For detailed TABLE layer documentation, see [insanity_cluster/table/README.md](insanity_cluster/table/README.md) [Soon]
 
 ## License
 
-[License information]
+GPL-3.0 license
 
 ## Contributing
 
-[Contributing guidelines]
+[Coming Soon]
