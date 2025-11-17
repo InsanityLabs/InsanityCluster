@@ -1,0 +1,93 @@
+.task-history h3 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.history-loading {
+  display: flex;
+  justify-content: center;
+  padding: 2rem;
+}
+
+.history-empty {
+  padding: 2rem;
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.history-table {
+  overflow-x: auto;
+}
+
+.history-table table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.history-table thead {
+  background-color: rgba(255, 255, 255, 0.03);
+}
+
+.history-table th {
+  padding: 0.75rem;
+  text-align: left;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.history-table td {
+  padding: 0.75rem;
+  font-size: 0.875rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.history-table tbody tr:hover {
+  background-color: rgba(255, 255, 255, 0.03);
+}
+
+.status-icon {
+  vertical-align: middle;
+}
+
+.status-icon.success {
+  color: var(--success-color);
+}
+
+.status-icon.error {
+  color: var(--error-color);
+}
+
+.command-cell {
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cost-cell,
+.latency-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: var(--text-secondary);
+}
+
+.date-cell {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+
+@media (max-width: 768px) {
+  .history-table {
+    font-size: 0.75rem;
+  }
+
+  .command-cell {
+    max-width: 150px;
+  }
+}

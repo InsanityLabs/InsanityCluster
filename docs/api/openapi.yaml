@@ -1,0 +1,666 @@
+openapi: 3.0.3
+info:
+  title: Insanity Cluster API
+  description: |
+    The Insanity Cluster is a fully autonomous, real-time multi-modal AI system designed to function as a "team in a box."
+    
+    This API provides programmatic access to submit tasks, monitor execution, and manage system configuration.
+    
+    ## Authentication
+    
+    All API requests require authentication using either:
+    - **API Key**: Include `X-API-Key` header with your API key
+    - **JWT Token**: Include `Authorization: Bearer <token>` header
+    
+    ## Rate Limiting
+    
+    - Free tier: 100 requests per hour
+    - Paid tier: 1000 requests per hour
+    - Rate limit headers are included in all responses
+    
+    ## WebSocket Connection
+    
+    For real-time updates, connect to the WebSocket endpoint at `ws://api.insanitycluster.com/ws`
+    
+  version: 1.0.0
+  contact:
+    name: Insanity Cluster Support
+    email: support@insanitycluster.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: https://api.insanitycluster.com/v1
+    description: Production server
+  - url: http://localhost:8000/v1
+    description: Development server
+
+tags:
+  - name: Tasks
+    description: Task creation and management
+  - name: Webhooks
+    description: Webhook registration and management
+  - name: Configuration
+    description: System configuration management
+  - name: Monitoring
+    description: Metrics and monitoring
+  - name: Authentication
+    description: User authentication and authorization
+
+paths:
+  /tasks:
+    post:
+      tags:
+        - Tasks
+      summary: Create a new task
+      description: Submit a natural language command to be processed by the system
+      operationId: createTask
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskRequest'
+            examples:
+              simpleTask:
+                summary: Simple task
+                value:
+                  command: "Write a Python function to calculate fibonacci numbers"
+                  priority: "normal"
+              complexTask:
+                summary: Complex multi-step task
+                value:
+                  command: "Form an LLC in Delaware, set up a bank account, and create a website"
+                  priority: "high"
+                  context:
+                    company_name: "TechStartup Inc"
+                    state: "Delaware"
+      responses:
+        '201':
+          description: Task created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /tasks/{task_id}:
+    get:
+      tags:
+        - Tasks
+      summary: Get task status
+      description: Retrieve the current status and details of a task
+      operationId: getTaskStatus
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      parameters:
+        - name: task_id
+          in: path
+          required: true
+          description: Unique task identifier
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Task status retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskStatus'
+        '404':
+          description: Task not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      tags:
+        - Tasks
+      summary: Cancel a task
+      description: Cancel a running task
+      operationId: cancelTask
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      parameters:
+        - name: task_id
+          in: path
+          required: true
+          description: Unique task identifier
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Task cancelled successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Task cancelled successfully"
+        '404':
+          description: Task not found
+        '409':
+          description: Task already completed
+
+  /tasks/{task_id}/result:
+    get:
+      tags:
+        - Tasks
+      summary: Get task result
+      description: Retrieve the final result of a completed task
+      operationId: getTaskResult
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      parameters:
+        - name: task_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Task result retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskResult'
+        '404':
+          description: Task not found
+        '425':
+          description: Task not yet completed
+
+  /webhooks:
+    post:
+      tags:
+        - Webhooks
+      summary: Register a webhook
+      description: Register a webhook URL to receive task completion notifications
+      operationId: registerWebhook
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebhookRequest'
+      responses:
+        '201':
+          description: Webhook registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebhookResponse'
+        '400':
+          description: Invalid webhook URL
+
+    get:
+      tags:
+        - Webhooks
+      summary: List webhooks
+      description: List all registered webhooks for the authenticated user
+      operationId: listWebhooks
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Webhooks retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  webhooks:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/WebhookResponse'
+
+  /webhooks/{webhook_id}:
+    delete:
+      tags:
+        - Webhooks
+      summary: Delete a webhook
+      description: Remove a registered webhook
+      operationId: deleteWebhook
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      parameters:
+        - name: webhook_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Webhook deleted successfully
+        '404':
+          description: Webhook not found
+
+  /config/mode:
+    get:
+      tags:
+        - Configuration
+      summary: Get current operating mode
+      description: Retrieve the current operating mode configuration
+      operationId: getOperatingMode
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Operating mode retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModeConfiguration'
+
+    put:
+      tags:
+        - Configuration
+      summary: Update operating mode
+      description: Change the operating mode (Local, OpenRouter Free, Mixed, Web, OpenRouter Paid)
+      operationId: updateOperatingMode
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ModeConfiguration'
+      responses:
+        '200':
+          description: Operating mode updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModeConfiguration'
+        '400':
+          description: Invalid configuration
+
+  /metrics/tasks:
+    get:
+      tags:
+        - Monitoring
+      summary: Get task metrics
+      description: Retrieve aggregated task execution metrics
+      operationId: getTaskMetrics
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      parameters:
+        - name: start_time
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: end_time
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Metrics retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskMetrics'
+
+  /metrics/costs:
+    get:
+      tags:
+        - Monitoring
+      summary: Get cost metrics
+      description: Retrieve cost tracking information
+      operationId: getCostMetrics
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      parameters:
+        - name: period
+          in: query
+          schema:
+            type: string
+            enum: [day, week, month]
+            default: day
+      responses:
+        '200':
+          description: Cost metrics retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CostMetrics'
+
+  /auth/token:
+    post:
+      tags:
+        - Authentication
+      summary: Generate JWT token
+      description: Exchange API key for a JWT token
+      operationId: generateToken
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Token generated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                    description: JWT token
+                  expires_at:
+                    type: string
+                    format: date-time
+        '401':
+          description: Invalid API key
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: API key for authentication
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token for authentication
+
+  schemas:
+    TaskRequest:
+      type: object
+      required:
+        - command
+      properties:
+        command:
+          type: string
+          description: Natural language command to execute
+          example: "Create a Python web scraper for news articles"
+        priority:
+          type: string
+          enum: [low, normal, high, urgent]
+          default: normal
+          description: Task priority level
+        context:
+          type: object
+          additionalProperties: true
+          description: Additional context for the task
+        webhook_url:
+          type: string
+          format: uri
+          description: Optional webhook URL for completion notification
+
+    TaskResponse:
+      type: object
+      properties:
+        task_id:
+          type: string
+          format: uuid
+          description: Unique task identifier
+        status:
+          type: string
+          enum: [queued, parsing, decomposing, executing, completed, failed, cancelled]
+          description: Current task status
+        created_at:
+          type: string
+          format: date-time
+        estimated_completion:
+          type: string
+          format: date-time
+          description: Estimated completion time
+        websocket_url:
+          type: string
+          description: WebSocket URL for real-time updates
+
+    TaskStatus:
+      type: object
+      properties:
+        task_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [queued, parsing, decomposing, executing, completed, failed, cancelled]
+        command:
+          type: string
+          description: Original command
+        progress:
+          type: object
+          properties:
+            current_step:
+              type: integer
+            total_steps:
+              type: integer
+            percentage:
+              type: number
+              format: float
+        active_agents:
+          type: array
+          items:
+            type: string
+          description: Currently active agents
+        subtasks:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              description:
+                type: string
+              status:
+                type: string
+              agent:
+                type: string
+        cost_so_far:
+          type: number
+          format: float
+          description: Cost incurred so far
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+
+    TaskResult:
+      type: object
+      properties:
+        task_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+        result:
+          type: object
+          additionalProperties: true
+          description: Task execution result
+        artifacts:
+          type: array
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+                example: "file"
+              name:
+                type: string
+              url:
+                type: string
+                format: uri
+        metrics:
+          type: object
+          properties:
+            total_cost:
+              type: number
+              format: float
+            total_latency_ms:
+              type: integer
+            models_used:
+              type: array
+              items:
+                type: string
+        completed_at:
+          type: string
+          format: date-time
+
+    WebhookRequest:
+      type: object
+      required:
+        - url
+        - events
+      properties:
+        url:
+          type: string
+          format: uri
+          description: Webhook endpoint URL
+        events:
+          type: array
+          items:
+            type: string
+            enum: [task.completed, task.failed, task.cancelled]
+          description: Events to subscribe to
+        secret:
+          type: string
+          description: Optional secret for webhook signature verification
+
+    WebhookResponse:
+      type: object
+      properties:
+        webhook_id:
+          type: string
+          format: uuid
+        url:
+          type: string
+          format: uri
+        events:
+          type: array
+          items:
+            type: string
+        created_at:
+          type: string
+          format: date-time
+
+    ModeConfiguration:
+      type: object
+      properties:
+        mode:
+          type: string
+          enum: [LOCAL, OPENROUTER_FREE, MIXED, WEB, OPENROUTER_PAID]
+          description: Operating mode
+        default_strategy:
+          type: string
+          enum: [SPEED_FIRST, QUALITY_FIRST, COST_OPTIMIZED, TASK_SPECIFIC]
+          description: Default routing strategy
+        max_cost_per_task:
+          type: number
+          format: float
+          description: Maximum cost per task in USD
+        max_cost_per_day:
+          type: number
+          format: float
+          description: Maximum daily cost in USD
+        local_complexity_threshold:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          description: Complexity threshold for using local models (Mixed mode only)
+
+    TaskMetrics:
+      type: object
+      properties:
+        total_tasks:
+          type: integer
+        completed_tasks:
+          type: integer
+        failed_tasks:
+          type: integer
+        average_latency_ms:
+          type: number
+          format: float
+        p50_latency_ms:
+          type: number
+        p95_latency_ms:
+          type: number
+        p99_latency_ms:
+          type: number
+
+    CostMetrics:
+      type: object
+      properties:
+        total_cost:
+          type: number
+          format: float
+        cost_by_model:
+          type: object
+          additionalProperties:
+            type: number
+            format: float
+        cost_by_agent:
+          type: object
+          additionalProperties:
+            type: number
+            format: float
+        daily_limit:
+          type: number
+          format: float
+        remaining_budget:
+          type: number
+          format: float
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+        code:
+          type: string
+          description: Error code
+        details:
+          type: object
+          additionalProperties: true

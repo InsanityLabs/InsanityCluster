@@ -1,0 +1,53 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: insanity-cluster-config
+  namespace: insanity-cluster
+data:
+  # System Configuration
+  ENVIRONMENT: "production"
+  DEBUG: "false"
+  LOG_LEVEL: "INFO"
+  
+  # Database Configuration
+  POSTGRES_HOST: "postgres-service"
+  POSTGRES_PORT: "5432"
+  POSTGRES_DB: "insanity_cluster"
+  POSTGRES_USER: "insanity"
+  
+  # Redis Configuration
+  REDIS_HOST: "redis-service"
+  REDIS_PORT: "6379"
+  REDIS_DB: "0"
+  
+  # Qdrant Configuration
+  QDRANT_HOST: "qdrant-service"
+  QDRANT_PORT: "6333"
+  
+  # API Configuration
+  API_HOST: "0.0.0.0"
+  API_PORT: "8000"
+  API_WORKERS: "4"
+  
+  # Model Routing Configuration
+  OPERATING_MODE: "mixed"
+  DEFAULT_ROUTING_STRATEGY: "cost_optimized"
+  MAX_COST_PER_DAY: "50.0"
+  LOCAL_COMPLEXITY_THRESHOLD: "0.5"
+  
+  # Performance Configuration
+  MAX_CONCURRENT_TASKS: "100"
+  TASK_TIMEOUT_SECONDS: "300"
+  MODEL_TIMEOUT_SECONDS: "60"
+  MAX_RETRY_ATTEMPTS: "3"
+  
+  # WebSocket Configuration
+  WS_HEARTBEAT_INTERVAL: "30"
+  WS_MAX_CONNECTIONS: "1000"
+  
+  # Cache Configuration
+  CACHE_TTL_SECONDS: "3600"
+  
+  # Monitoring Configuration
+  PROMETHEUS_PORT: "9090"
+  OTEL_SERVICE_NAME: "insanity-cluster"

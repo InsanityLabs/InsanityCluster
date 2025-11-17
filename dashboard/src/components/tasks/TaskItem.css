@@ -1,0 +1,117 @@
+.task-item {
+  padding: 1rem;
+  background-color: var(--bg-light);
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.task-item:hover {
+  border-color: var(--primary-color);
+  box-shadow: 0 2px 8px rgba(100, 108, 255, 0.1);
+}
+
+.task-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.task-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.status-icon {
+  flex-shrink: 0;
+}
+
+.status-icon.success {
+  color: var(--success-color);
+}
+
+.status-icon.error {
+  color: var(--error-color);
+}
+
+.status-icon.warning {
+  color: var(--warning-color);
+}
+
+.status-icon.running {
+  color: var(--primary-color);
+  animation: spin 2s linear infinite;
+}
+
+.status-icon.pending {
+  color: var(--text-secondary);
+}
+
+.status-text {
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.cancel-button {
+  padding: 0.25rem 0.75rem;
+  background-color: var(--error-color);
+  color: white;
+  border: none;
+  border-radius: 0.25rem;
+  cursor: pointer;
+  font-size: 0.75rem;
+  transition: opacity 0.2s;
+}
+
+.cancel-button:hover {
+  opacity: 0.8;
+}
+
+.task-item-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.task-command {
+  font-size: 0.875rem;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.task-metadata {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.task-metadata > span {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.task-id {
+  font-family: monospace;
+}
+
+.task-item.status-completed {
+  border-left: 3px solid var(--success-color);
+}
+
+.task-item.status-failed {
+  border-left: 3px solid var(--error-color);
+}
+
+.task-item.status-running {
+  border-left: 3px solid var(--primary-color);
+}
+
+.task-item.status-cancelled {
+  border-left: 3px solid var(--warning-color);
+}

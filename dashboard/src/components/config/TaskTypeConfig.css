@@ -1,0 +1,119 @@
+.task-type-config {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.add-task-type {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.add-task-type select {
+  flex: 1;
+  padding: 0.5rem;
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-color);
+  border-radius: 0.375rem;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.add-button {
+  padding: 0.5rem 1rem;
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: background-color 0.2s;
+}
+
+.add-button:hover:not(:disabled) {
+  background-color: var(--primary-hover);
+}
+
+.add-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.task-type-table {
+  overflow-x: auto;
+}
+
+.task-type-table table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.task-type-table thead {
+  background-color: rgba(255, 255, 255, 0.03);
+}
+
+.task-type-table th {
+  padding: 0.75rem;
+  text-align: left;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.task-type-table td {
+  padding: 0.75rem;
+  font-size: 0.875rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.task-type-table tbody tr:hover {
+  background-color: rgba(255, 255, 255, 0.03);
+}
+
+.task-type-name {
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.task-type-table select {
+  width: 100%;
+  padding: 0.375rem;
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-color);
+  border-radius: 0.25rem;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.task-type-table input[type='checkbox'] {
+  cursor: pointer;
+}
+
+.task-type-table .remove-button {
+  padding: 0.25rem;
+  background-color: transparent;
+  color: var(--error-color);
+  border: none;
+  border-radius: 0.25rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.task-type-table .remove-button:hover {
+  background-color: rgba(248, 113, 113, 0.1);
+}
+
+@media (max-width: 768px) {
+  .task-type-table {
+    font-size: 0.75rem;
+  }
+
+  .task-type-table th,
+  .task-type-table td {
+    padding: 0.5rem;
+  }
+}

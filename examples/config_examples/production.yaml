@@ -1,0 +1,265 @@
+# Production Configuration Example
+# This configuration is optimized for production deployment
+
+# Operating Mode
+mode: mixed
+
+# Default Routing Strategy
+default_strategy: cost_optimized
+
+# Cost Limits
+cost_limits:
+  per_task: 2.00
+  per_day: 100.00
+  per_month: 2000.00
+  warning_threshold: 0.80
+
+# Mixed Mode Settings
+mixed_mode:
+  local_complexity_threshold: 0.5
+  paid_model_trigger: complexity
+  fallback_enabled: true
+
+# Agent Configuration
+agents:
+  developer:
+    primary_model: claude-sonnet-4.5
+    fallback_models:
+      - gpt-5-codex
+      - local:codellama
+    max_cost: 2.00
+    fallback_to_paid: true
+  
+  communication:
+    primary_model: claude-haiku-4.5
+    fallback_models:
+      - gpt-5-mini
+      - local:mistral
+    max_cost: 0.20
+    fallback_to_paid: true
+  
+  business:
+    primary_model: claude-opus-4.1
+    fallback_models:
+      - gpt-5.1
+      - claude-sonnet-4.5
+    max_cost: 3.00
+    fallback_to_paid: true
+  
+  research:
+    primary_model: claude-sonnet-4.5
+    fallback_models:
+      - gpt-5-mini
+      - local:llama3:70b
+    max_cost: 1.00
+    fallback_to_paid: true
+  
+  creative:
+    primary_model: gpt-5.1
+    fallback_models:
+      - claude-sonnet-4.5
+      - local:llama3:70b
+    max_cost: 1.00
+    fallback_to_paid: true
+  
+  finance:
+    primary_model: gpt-5-mini
+    fallback_models:
+      - claude-haiku-4.5
+      - local:mistral
+    max_cost: 0.30
+    fallback_to_paid: true
+  
+  project_manager:
+    primary_model: gpt-5-mini
+    fallback_models:
+      - claude-haiku-4.5
+      - local:mistral
+    max_cost: 0.20
+    fallback_to_paid: true
+
+# Task Type Overrides
+task_type_overrides:
+  code_generation:
+    model_override: claude-sonnet-4.5
+    strategy_override: quality_first
+    allow_local: false
+    allow_paid: true
+  
+  code_review:
+    model_override: gpt-5-codex
+    strategy_override: quality_first
+    allow_local: false
+    allow_paid: true
+  
+  legal_analysis:
+    model_override: claude-opus-4.1
+    strategy_override: quality_first
+    allow_local: false
+    allow_paid: true
+  
+  simple_chat:
+    model_override: local:phi3
+    strategy_override: speed_first
+    allow_local: true
+    allow_paid: false
+  
+  financial_calculations:
+    model_override: gpt-5-mini
+    strategy_override: cost_optimized
+    allow_local: true
+    allow_paid: true
+
+# Model Provider Configuration
+providers:
+  openai:
+    enabled: true
+    rate_limit: 100
+    timeout: 60
+    retry_attempts: 3
+    retry_delay: 2
+  
+  anthropic:
+    enabled: true
+    rate_limit: 50
+    timeout: 90
+    retry_attempts: 3
+    retry_delay: 2
+  
+  openrouter:
+    enabled: true
+    use_free_tier: false
+    use_paid_tier: true
+    rate_limit: 100
+    timeout: 60
+    retry_attempts: 3
+    retry_delay: 2
+  
+  ollama:
+    enabled: true
+    endpoint: http://ollama:11434
+    auto_pull: false
+    timeout: 120
+  
+  lmstudio:
+    enabled: false
+
+# Retry Policies
+retry_policies:
+  max_attempts: 3
+  exponential_backoff: true
+  initial_delay: 2
+  max_delay: 120
+  backoff_multiplier: 2
+
+# Circuit Breaker
+circuit_breaker:
+  enabled: true
+  failure_threshold: 5
+  timeout: 60
+  half_open_attempts: 2
+
+# Caching
+caching:
+  enabled: true
+  command_parsing_ttl: 604800  # 7 days
+  context_ttl: 3600  # 1 hour
+  task_decomposition_ttl: 86400  # 1 day
+
+# Webhooks
+webhooks:
+  enabled: true
+  retry_attempts: 5
+  retry_schedule: [60, 300, 900, 3600, 21600]
+  timeout: 10
+
+# Notifications
+notifications:
+  email:
+    enabled: true
+    smtp_host: smtp.gmail.com
+    smtp_port: 587
+    from_address: notifications@insanitycluster.com
+  
+  slack:
+    enabled: true
+    webhook_url: ${SLACK_WEBHOOK_URL}
+  
+  discord:
+    enabled: false
+
+# Data Retention
+data_retention:
+  task_history_days: 90
+  context_history_days: 30
+  metrics_history_days: 365
+  logs_history_days: 30
+
+# Performance Settings
+performance:
+  max_concurrent_tasks: 50
+  task_timeout_seconds: 600
+  model_timeout_seconds: 90
+
+# Logging
+logging:
+  level: INFO
+  format: json
+  file: logs/production.log
+
+# Security
+security:
+  jwt_expiration_hours: 24
+  api_key_rotation_days: 90
+  session_timeout_hours: 24
+  rate_limit_per_hour: 1000
+
+# Monitoring
+monitoring:
+  enabled: true
+  prometheus_port: 9090
+  grafana_port: 3000
+  enable_tracing: true
+  enable_metrics: true
+  
+  alerts:
+    - type: cost_limit
+      threshold: 0.80
+      action: email
+      recipients: [admin@insanitycluster.com]
+    
+    - type: error_rate
+      threshold: 0.10
+      action: slack
+      channel: "#alerts"
+    
+    - type: queue_depth
+      threshold: 100
+      action: email
+      recipients: [devops@insanitycluster.com]
+    
+    - type: latency
+      threshold: 10000  # 10 seconds
+      action: slack
+      channel: "#performance"
+
+# High Availability
+high_availability:
+  enabled: true
+  replicas:
+    surface: 3
+    inner: 3
+    crust: 10
+  auto_scaling:
+    enabled: true
+    min_replicas: 5
+    max_replicas: 50
+    target_cpu_utilization: 70
+    target_memory_utilization: 80
+
+# Backup
+backup:
+  enabled: true
+  schedule: "0 2 * * *"  # Daily at 2 AM
+  retention_days: 30
+  storage: s3://insanity-cluster-backups/

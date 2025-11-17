@@ -1,0 +1,241 @@
+# Budget-Conscious Configuration Example
+# This configuration minimizes costs while maintaining reasonable quality
+
+# Operating Mode
+mode: mixed
+
+# Default Routing Strategy
+default_strategy: cost_optimized
+
+# Cost Limits (strict)
+cost_limits:
+  per_task: 0.50
+  per_day: 10.00
+  per_month: 200.00
+  warning_threshold: 0.80
+
+# Mixed Mode Settings (favor local models)
+mixed_mode:
+  local_complexity_threshold: 0.7  # Use local for most tasks
+  paid_model_trigger: complexity
+  fallback_enabled: true
+
+# Agent Configuration (prefer local and cheap models)
+agents:
+  developer:
+    primary_model: local:codellama
+    fallback_models:
+      - gpt-5-mini
+      - claude-haiku-4.5
+    max_cost: 0.50
+    fallback_to_paid: true
+  
+  communication:
+    primary_model: local:mistral
+    fallback_models:
+      - gpt-5-mini
+    max_cost: 0.10
+    fallback_to_paid: true
+  
+  business:
+    primary_model: local:llama3:70b
+    fallback_models:
+      - claude-sonnet-4.5
+    max_cost: 1.00
+    fallback_to_paid: true
+  
+  research:
+    primary_model: local:llama3:70b
+    fallback_models:
+      - gpt-5-mini
+    max_cost: 0.30
+    fallback_to_paid: true
+  
+  creative:
+    primary_model: local:llama3:70b
+    fallback_models:
+      - gpt-5-mini
+    max_cost: 0.30
+    fallback_to_paid: true
+  
+  finance:
+    primary_model: local:mistral
+    fallback_models:
+      - gpt-5-mini
+    max_cost: 0.10
+    fallback_to_paid: true
+  
+  project_manager:
+    primary_model: local:mistral
+    fallback_models:
+      - gpt-5-mini
+    max_cost: 0.10
+    fallback_to_paid: true
+
+# Task Type Overrides (force local for most tasks)
+task_type_overrides:
+  code_generation:
+    model_override: local:codellama
+    strategy_override: cost_optimized
+    allow_local: true
+    allow_paid: true  # Allow paid as fallback
+  
+  code_review:
+    model_override: local:codellama
+    strategy_override: cost_optimized
+    allow_local: true
+    allow_paid: true
+  
+  simple_chat:
+    model_override: local:phi3
+    strategy_override: speed_first
+    allow_local: true
+    allow_paid: false  # Never use paid for simple chat
+  
+  data_formatting:
+    model_override: local:mistral
+    strategy_override: speed_first
+    allow_local: true
+    allow_paid: false
+  
+  # Only allow paid for critical tasks
+  legal_analysis:
+    model_override: claude-sonnet-4.5
+    strategy_override: quality_first
+    allow_local: false
+    allow_paid: true
+  
+  financial_calculations:
+    model_override: local:mistral
+    strategy_override: cost_optimized
+    allow_local: true
+    allow_paid: true
+
+# Model Provider Configuration
+providers:
+  # Prioritize local models
+  ollama:
+    enabled: true
+    endpoint: http://localhost:11434
+    auto_pull: true
+    timeout: 120
+  
+  lmstudio:
+    enabled: true
+    endpoint: http://localhost:1234
+    timeout: 120
+  
+  # Enable cheap paid models as fallback
+  openai:
+    enabled: true
+    rate_limit: 50
+    timeout: 60
+    retry_attempts: 2
+    retry_delay: 1
+  
+  anthropic:
+    enabled: true
+    rate_limit: 30
+    timeout: 60
+    retry_attempts: 2
+    retry_delay: 1
+  
+  # Use OpenRouter free tier when possible
+  openrouter:
+    enabled: true
+    use_free_tier: true
+    use_paid_tier: false
+    rate_limit: 50
+    timeout: 60
+    retry_attempts: 2
+    retry_delay: 1
+
+# Retry Policies (fewer retries to save costs)
+retry_policies:
+  max_attempts: 2
+  exponential_backoff: true
+  initial_delay: 1
+  max_delay: 30
+  backoff_multiplier: 2
+
+# Circuit Breaker
+circuit_breaker:
+  enabled: true
+  failure_threshold: 3
+  timeout: 30
+  half_open_attempts: 1
+
+# Caching (aggressive caching to reduce API calls)
+caching:
+  enabled: true
+  command_parsing_ttl: 2592000  # 30 days
+  context_ttl: 7200  # 2 hours
+  task_decomposition_ttl: 604800  # 7 days
+
+# Webhooks
+webhooks:
+  enabled: false  # Disable to save resources
+
+# Notifications
+notifications:
+  email:
+    enabled: true
+    smtp_host: smtp.gmail.com
+    smtp_port: 587
+    from_address: notifications@insanitycluster.com
+  
+  slack:
+    enabled: false
+  
+  discord:
+    enabled: false
+
+# Data Retention (shorter retention to save storage)
+data_retention:
+  task_history_days: 30
+  context_history_days: 7
+  metrics_history_days: 90
+  logs_history_days: 7
+
+# Performance Settings
+performance:
+  max_concurrent_tasks: 10
+  task_timeout_seconds: 300
+  model_timeout_seconds: 60
+
+# Logging
+logging:
+  level: INFO
+  format: json
+  file: logs/budget.log
+
+# Monitoring (basic monitoring only)
+monitoring:
+  enabled: true
+  prometheus_port: 9090
+  grafana_port: 3000
+  enable_tracing: false  # Disable to save resources
+  enable_metrics: true
+  
+  alerts:
+    - type: cost_limit
+      threshold: 0.80
+      action: email
+      recipients: [admin@insanitycluster.com]
+    
+    - type: daily_cost_exceeded
+      threshold: 10.00
+      action: email
+      recipients: [admin@insanitycluster.com]
+
+# Tips for Budget-Conscious Usage
+# 1. Use local models for 70%+ of tasks
+# 2. Only use paid models for complex/critical tasks
+# 3. Enable aggressive caching
+# 4. Set strict cost limits
+# 5. Monitor daily spending
+# 6. Use OpenRouter free tier when possible
+# 7. Disable unnecessary features (webhooks, tracing)
+# 8. Reduce data retention periods
+# 9. Limit concurrent tasks
+# 10. Review and optimize task-type overrides regularly

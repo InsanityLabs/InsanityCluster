@@ -1,0 +1,162 @@
+# Development Configuration Example
+# This configuration is optimized for local development
+
+# Operating Mode
+mode: local
+
+# Default Routing Strategy
+default_strategy: speed_first
+
+# Cost Limits (set to 0 for local mode)
+cost_limits:
+  per_task: 0.00
+  per_day: 0.00
+  per_month: 0.00
+  warning_threshold: 0.80
+
+# Mixed Mode Settings (not used in local mode)
+mixed_mode:
+  local_complexity_threshold: 0.5
+  paid_model_trigger: complexity
+  fallback_enabled: false
+
+# Agent Configuration
+agents:
+  developer:
+    primary_model: local:codellama
+    fallback_models:
+      - local:llama3:70b
+    max_cost: 0.00
+    fallback_to_paid: false
+  
+  communication:
+    primary_model: local:mistral
+    fallback_models:
+      - local:phi3
+    max_cost: 0.00
+    fallback_to_paid: false
+  
+  business:
+    primary_model: local:llama3:70b
+    fallback_models:
+      - local:mistral
+    max_cost: 0.00
+    fallback_to_paid: false
+  
+  research:
+    primary_model: local:llama3:70b
+    fallback_models:
+      - local:mistral
+    max_cost: 0.00
+    fallback_to_paid: false
+  
+  creative:
+    primary_model: local:llama3:70b
+    fallback_models:
+      - local:mistral
+    max_cost: 0.00
+    fallback_to_paid: false
+  
+  finance:
+    primary_model: local:mistral
+    fallback_models:
+      - local:phi3
+    max_cost: 0.00
+    fallback_to_paid: false
+  
+  project_manager:
+    primary_model: local:mistral
+    fallback_models:
+      - local:phi3
+    max_cost: 0.00
+    fallback_to_paid: false
+
+# Task Type Overrides
+task_type_overrides:
+  code_generation:
+    model_override: local:codellama
+    strategy_override: speed_first
+    allow_local: true
+    allow_paid: false
+  
+  simple_chat:
+    model_override: local:phi3
+    strategy_override: speed_first
+    allow_local: true
+    allow_paid: false
+
+# Model Provider Configuration
+providers:
+  ollama:
+    enabled: true
+    endpoint: http://localhost:11434
+    auto_pull: true
+    timeout: 120
+  
+  lmstudio:
+    enabled: true
+    endpoint: http://localhost:1234
+    timeout: 120
+  
+  openai:
+    enabled: false
+  
+  anthropic:
+    enabled: false
+  
+  openrouter:
+    enabled: false
+
+# Retry Policies
+retry_policies:
+  max_attempts: 2
+  exponential_backoff: true
+  initial_delay: 1
+  max_delay: 30
+  backoff_multiplier: 2
+
+# Circuit Breaker
+circuit_breaker:
+  enabled: true
+  failure_threshold: 3
+  timeout: 30
+  half_open_attempts: 1
+
+# Caching
+caching:
+  enabled: true
+  command_parsing_ttl: 604800  # 7 days
+  context_ttl: 3600  # 1 hour
+  task_decomposition_ttl: 86400  # 1 day
+
+# Webhooks
+webhooks:
+  enabled: false
+
+# Notifications
+notifications:
+  email:
+    enabled: false
+  slack:
+    enabled: false
+  discord:
+    enabled: false
+
+# Data Retention
+data_retention:
+  task_history_days: 30
+  context_history_days: 7
+  metrics_history_days: 30
+  logs_history_days: 7
+
+# Performance Settings
+performance:
+  max_concurrent_tasks: 5
+  task_timeout_seconds: 300
+  model_timeout_seconds: 120
+
+# Logging
+logging:
+  level: DEBUG
+  format: json
+  file: logs/development.log

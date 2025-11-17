@@ -1,0 +1,87 @@
+name: Deploy to Staging
+
+on:
+  push:
+    branches: [ develop ]
+  workflow_dispatch:
+
+env:
+  KUBE_NAMESPACE: insanity-cluster-staging
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository }}
+
+jobs:
+  deploy:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    environment:
+      name: staging
+      url: https://staging-api.insanity-cluster.example.com
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up kubectl
+      uses: azure/setup-kubectl@v4
+      with:
+        version: 'v1.27.0'
+
+    - name: Configure kubectl
+      run: |
+        echo "${{ secrets.KUBE_CONFIG_STAGING }}" | base64 -d > kubeconfig
+        export KUBECONFIG=kubeconfig
+        kubectl config use-context staging
+
+    - name: Update image tags
+      run: |
+        export IMAGE_TAG="${{ github.sha }}"
+        
+        # Update SURFACE deployment
+        kubectl set image deployment/surface \
+          surface=${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-surface:develop-${IMAGE_TAG} \
+          -n ${{ env.KUBE_NAMESPACE }}
+        
+        # Update INNER deployment
+        kubectl set image deployment/inner \
+          inner=${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-inner:develop-${IMAGE_TAG} \
+          -n ${{ env.KUBE_NAMESPACE }}
+        
+        # Update CRUST deployment
+        kubectl set image deployment/crust \
+          crust=${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-crust:develop-${IMAGE_TAG} \
+          -n ${{ env.KUBE_NAMESPACE }}
+
+    - name: Wait for rollout
+      run: |
+        kubectl rollout status deployment/surface -n ${{ env.KUBE_NAMESPACE }} --timeout=5m
+        kubectl rollout status deployment/inner -n ${{ env.KUBE_NAMESPACE }} --timeout=5m
+        kubectl rollout status deployment/crust -n ${{ env.KUBE_NAMESPACE }} --timeout=5m
+
+    - name: Verify deployment
+      run: |
+        kubectl get pods -n ${{ env.KUBE_NAMESPACE }}
+        kubectl get svc -n ${{ env.KUBE_NAMESPACE }}
+
+    - name: Run smoke tests
+      run: |
+        # Wait for service to be ready
+        sleep 30
+        
+        # Get service URL
+        SERVICE_URL=$(kubectl get svc surface-service -n ${{ env.KUBE_NAMESPACE }} -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+        
+        # Test health endpoint
+        curl -f http://${SERVICE_URL}/api/health || exit 1
+        
+        echo "Smoke tests passed!"
+
+    - name: Notify deployment
+      if: always()
+      uses: 8398a7/action-slack@v3
+      with:
+        status: ${{ job.status }}
+        text: 'Staging deployment ${{ job.status }}'
+        webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}

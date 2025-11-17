@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: insanity-cluster
+  labels:
+    name: insanity-cluster
+    environment: production

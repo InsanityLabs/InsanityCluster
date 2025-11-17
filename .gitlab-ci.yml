@@ -1,0 +1,207 @@
+# GitLab CI/CD Pipeline for Insanity Cluster
+
+variables:
+  DOCKER_DRIVER: overlay2
+  DOCKER_TLS_CERTDIR: "/certs"
+  REGISTRY: $CI_REGISTRY
+  IMAGE_PREFIX: $CI_REGISTRY_IMAGE
+  PYTHON_VERSION: "3.11"
+
+stages:
+  - lint
+  - test
+  - build
+  - deploy-staging
+  - deploy-production
+
+# Templates
+.docker_template: &docker_template
+  image: docker:24-dind
+  services:
+    - docker:24-dind
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+
+.kubectl_template: &kubectl_template
+  image: bitnami/kubectl:latest
+  before_script:
+    - echo "$KUBE_CONFIG" | base64 -d > kubeconfig
+    - export KUBECONFIG=kubeconfig
+
+# Lint Stage
+lint:black:
+  stage: lint
+  image: python:$PYTHON_VERSION
+  before_script:
+    - pip install black isort flake8 mypy
+  script:
+    - black --check insanity_cluster tests
+    - isort --check-only insanity_cluster tests
+    - flake8 insanity_cluster tests --max-line-length=100 --extend-ignore=E203,W503
+    - mypy insanity_cluster --ignore-missing-imports
+  allow_failure: true
+  only:
+    - merge_requests
+    - main
+    - develop
+
+# Test Stage
+test:unit:
+  stage: test
+  image: python:$PYTHON_VERSION
+  services:
+    - postgres:16-alpine
+    - redis:7-alpine
+  variables:
+    POSTGRES_DB: insanity_cluster_test
+    POSTGRES_USER: insanity
+    POSTGRES_PASSWORD: test_password
+    POSTGRES_HOST: postgres
+    REDIS_HOST: redis
+  before_script:
+    - pip install -r requirements.txt
+  script:
+    - pytest tests/ -v --cov=insanity_cluster --cov-report=xml --cov-report=term
+  coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
+  only:
+    - merge_requests
+    - main
+    - develop
+
+test:security:
+  stage: test
+  image: python:$PYTHON_VERSION
+  before_script:
+    - pip install safety bandit
+  script:
+    - safety check --json || true
+    - bandit -r insanity_cluster -f json -o bandit-report.json || true
+  artifacts:
+    paths:
+      - bandit-report.json
+    expire_in: 1 week
+  allow_failure: true
+  only:
+    - merge_requests
+    - main
+    - develop
+
+# Build Stage
+build:surface:
+  <<: *docker_template
+  stage: build
+  script:
+    - docker build -f Dockerfile.surface -t $IMAGE_PREFIX/surface:$CI_COMMIT_SHORT_SHA .
+    - docker tag $IMAGE_PREFIX/surface:$CI_COMMIT_SHORT_SHA $IMAGE_PREFIX/surface:$CI_COMMIT_REF_SLUG
+    - docker push $IMAGE_PREFIX/surface:$CI_COMMIT_SHORT_SHA
+    - docker push $IMAGE_PREFIX/surface:$CI_COMMIT_REF_SLUG
+  only:
+    - main
+    - develop
+    - tags
+
+build:inner:
+  <<: *docker_template
+  stage: build
+  script:
+    - docker build -f Dockerfile.inner -t $IMAGE_PREFIX/inner:$CI_COMMIT_SHORT_SHA .
+    - docker tag $IMAGE_PREFIX/inner:$CI_COMMIT_SHORT_SHA $IMAGE_PREFIX/inner:$CI_COMMIT_REF_SLUG
+    - docker push $IMAGE_PREFIX/inner:$CI_COMMIT_SHORT_SHA
+    - docker push $IMAGE_PREFIX/inner:$CI_COMMIT_REF_SLUG
+  only:
+    - main
+    - develop
+    - tags
+
+build:crust:
+  <<: *docker_template
+  stage: build
+  script:
+    - docker build -f Dockerfile.crust -t $IMAGE_PREFIX/crust:$CI_COMMIT_SHORT_SHA .
+    - docker tag $IMAGE_PREFIX/crust:$CI_COMMIT_SHORT_SHA $IMAGE_PREFIX/crust:$CI_COMMIT_REF_SLUG
+    - docker push $IMAGE_PREFIX/crust:$CI_COMMIT_SHORT_SHA
+    - docker push $IMAGE_PREFIX/crust:$CI_COMMIT_REF_SLUG
+  only:
+    - main
+    - develop
+    - tags
+
+build:dashboard:
+  <<: *docker_template
+  stage: build
+  script:
+    - cd dashboard
+    - docker build -t $IMAGE_PREFIX/dashboard:$CI_COMMIT_SHORT_SHA .
+    - docker tag $IMAGE_PREFIX/dashboard:$CI_COMMIT_SHORT_SHA $IMAGE_PREFIX/dashboard:$CI_COMMIT_REF_SLUG
+    - docker push $IMAGE_PREFIX/dashboard:$CI_COMMIT_SHORT_SHA
+    - docker push $IMAGE_PREFIX/dashboard:$CI_COMMIT_REF_SLUG
+  only:
+    - main
+    - develop
+    - tags
+
+# Deploy Staging
+deploy:staging:
+  <<: *kubectl_template
+  stage: deploy-staging
+  environment:
+    name: staging
+    url: https://staging-api.insanity-cluster.example.com
+  variables:
+    KUBE_NAMESPACE: insanity-cluster-staging
+  script:
+    - kubectl config use-context staging
+    # Update deployments
+    - kubectl set image deployment/surface surface=$IMAGE_PREFIX/surface:$CI_COMMIT_SHORT_SHA -n $KUBE_NAMESPACE
+    - kubectl set image deployment/inner inner=$IMAGE_PREFIX/inner:$CI_COMMIT_SHORT_SHA -n $KUBE_NAMESPACE
+    - kubectl set image deployment/crust crust=$IMAGE_PREFIX/crust:$CI_COMMIT_SHORT_SHA -n $KUBE_NAMESPACE
+    # Wait for rollout
+    - kubectl rollout status deployment/surface -n $KUBE_NAMESPACE --timeout=5m
+    - kubectl rollout status deployment/inner -n $KUBE_NAMESPACE --timeout=5m
+    - kubectl rollout status deployment/crust -n $KUBE_NAMESPACE --timeout=5m
+    # Verify
+    - kubectl get pods -n $KUBE_NAMESPACE
+  only:
+    - develop
+
+# Deploy Production
+deploy:production:
+  <<: *kubectl_template
+  stage: deploy-production
+  environment:
+    name: production
+    url: https://api.insanity-cluster.example.com
+  variables:
+    KUBE_NAMESPACE: insanity-cluster
+  script:
+    - kubectl config use-context production
+    # Create backup
+    - kubectl get deployment surface -n $KUBE_NAMESPACE -o yaml > backup-surface.yaml
+    - kubectl get deployment inner -n $KUBE_NAMESPACE -o yaml > backup-inner.yaml
+    - kubectl get deployment crust -n $KUBE_NAMESPACE -o yaml > backup-crust.yaml
+    # Update deployments
+    - kubectl set image deployment/surface surface=$IMAGE_PREFIX/surface:$CI_COMMIT_TAG -n $KUBE_NAMESPACE
+    - kubectl set image deployment/inner inner=$IMAGE_PREFIX/inner:$CI_COMMIT_TAG -n $KUBE_NAMESPACE
+    - kubectl set image deployment/crust crust=$IMAGE_PREFIX/crust:$CI_COMMIT_TAG -n $KUBE_NAMESPACE
+    # Wait for rollout
+    - kubectl rollout status deployment/surface -n $KUBE_NAMESPACE --timeout=10m
+    - kubectl rollout status deployment/inner -n $KUBE_NAMESPACE --timeout=10m
+    - kubectl rollout status deployment/crust -n $KUBE_NAMESPACE --timeout=10m
+    # Verify
+    - kubectl get pods -n $KUBE_NAMESPACE
+    - sleep 60
+    # Smoke tests
+    - SERVICE_URL=$(kubectl get svc surface-service -n $KUBE_NAMESPACE -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+    - curl -f http://${SERVICE_URL}/api/health || exit 1
+  artifacts:
+    paths:
+      - backup-*.yaml
+    expire_in: 30 days
+  when: manual
+  only:
+    - tags

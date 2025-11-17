@@ -1,0 +1,28 @@
+.system-metrics {
+  background-color: var(--bg-light);
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  padding: 1.5rem;
+}
+
+.system-metrics h3 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.system-metrics .metric-icon.success {
+  background-color: rgba(74, 222, 128, 0.1);
+  color: var(--success-color);
+}
+
+.system-metrics .metric-icon.error {
+  background-color: rgba(248, 113, 113, 0.1);
+  color: var(--error-color);
+}
+
+@media (max-width: 768px) {
+  .system-metrics .metrics-cards {
+    grid-template-columns: 1fr;
+  }
+}
