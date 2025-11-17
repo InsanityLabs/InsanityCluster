@@ -4,7 +4,15 @@
 >
 > **THIS PROJECT HAS BARELY ANY SECURITY AND IS ENTIRELY A LOCAL NETWORK PROJECT. IT WAS NEVER DESIGNED FOR PUBLIC ACCESS.** This project will be updated with all of the fancy hosted security features every Kubernetes cluster should have, but currently it is NOT suitable for production or internet-facing deployment. Please as well with any of our public facing projects that we do not optimize them (unless explicity stated) for production.
 
-A fully autonomous, real-time multi-modal AI system designed to function as a "team in a box."
+⚠️ **<span style="color:red">PSA</span>**
+
+> **We are not liable for ANYTHING.** This project does NOT replace your employess this is for helping them not harming them. If this takes out a product or database we are not liable, if everyone hates it we are not liable and if you regret everything after installing we are certainaly not liable. you cloned this repo on your own time with your own internet connection. this is not prodction software this is well in progress. we use it internally to support our team and this is a recent change. so there are bugs errors and issues. you need TO BE AWARE WE ARE NOT LIABLE!!!!!!!
+
+## YOU HAVE BEEN WARNED OF THE RISKS
+
+## Insanity Cluster
+
+Is a fully autonomous, real-time multi-modal AI system designed to function as a "team in a box."
 
 ## Architecture
 

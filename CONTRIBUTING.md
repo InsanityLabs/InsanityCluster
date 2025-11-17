@@ -16,7 +16,7 @@ By participating in this project, you agree to abide by our Code of Conduct:
 ### Reporting Bugs
 
 Before creating a bug report:
-1. Check the [issue tracker](https://github.com/insanity-cluster/insanity-cluster/issues) for existing reports
+1. Check the [issue tracker](https://github.com/InsanityLabs/InsanityCluster/issues) for existing reports
 2. Try the latest version to see if the issue persists
 3. Collect relevant information (logs, error messages, steps to reproduce)
 
@@ -103,7 +103,7 @@ Any other context or screenshots.
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/insanity-cluster/insanity-cluster.git
+   git clone https://github.com/InsanityLabs/InsanityCluster.git
    cd insanity-cluster
    ```
 
@@ -468,15 +468,15 @@ We follow [Semantic Versioning](https://semver.org/):
 
 - **GitHub Issues**: Bug reports and feature requests
 - **GitHub Discussions**: General questions and discussions
-- **Discord**: Real-time chat and support
-- **Email**: developers@insanitycluster.com
+- **Discord**: Real-time chat and support (Soon)
+
 
 ### Getting Help
 
-- Check the [documentation](https://docs.insanitycluster.com)
-- Search [existing issues](https://github.com/insanity-cluster/insanity-cluster/issues)
-- Ask in [Discord](https://discord.gg/insanity-cluster)
-- Email support@insanitycluster.com
+- Check the [documentation Doc Site COming Soon] 
+- Search [existing issues](https://github.com/InsanityLabs/InsanityCluster/issues)
+- Ask in [Discord](Soon)
+
 
 ## Recognition
 
@@ -497,7 +497,7 @@ If you have questions about contributing, please:
 
 1. Check this document
 2. Search existing issues
-3. Ask in Discord
-4. Email developers@insanitycluster.com
+3. Ask in Discord (Soon)
+
 
 Thank you for contributing to Insanity Cluster! 🚀
